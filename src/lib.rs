@@ -10,7 +10,9 @@ mod services;
 mod state;
 
 use crate::config::Config;
+use crate::config::token::TokenConfig;
 use crate::routes::all_routes;
+use crate::services::token::TokenService;
 use crate::state::AppState;
 use axum::serve;
 use std::sync::{Arc, LazyLock};
@@ -34,15 +36,19 @@ pub async fn run() {
 
     let config = Config::new();
 
-    DB.connect::<Ws>(&config.db_config.surreal_url).await.unwrap();
+    DB.connect::<Ws>(&config.db_config.surreal_url)
+        .await
+        .unwrap();
     DB.signin(Root {
         username: &config.db_config.surreal_root_username,
         password: &config.db_config.surreal_root_password,
     })
-    .await.unwrap();
+    .await
+    .unwrap();
     DB.use_ns(&config.db_config.surreal_root_ns)
         .use_db(&config.db_config.surreal_root_db)
-        .await.unwrap();
+        .await
+        .unwrap();
 
     let port = config.server_config.server_port;
     info!(
@@ -53,6 +59,7 @@ pub async fn run() {
 
     let app_state = AppState {
         env: config.clone(),
+        token_service: TokenService::new(TokenConfig::new()),
     };
 
     let app_router = all_routes(Arc::new(app_state.clone()));

@@ -2,6 +2,8 @@
 pub struct TokenConfig {
     pub jwt_access_secret: String,
     pub jwt_refresh_secret: String,
+    pub email_verification_secret: String,
+    pub password_reset_secret: String,
     pub access_token_expires_in: i64,
     pub refresh_token_expires_in: i64,
     pub token_cleanup_interval: i64,
@@ -13,6 +15,10 @@ impl Default for TokenConfig {
             jwt_access_secret: std::env::var("JWT_ACCESS_SECRET")
                 .expect("JWT_ACCESS_SECRET must be set"),
             jwt_refresh_secret: std::env::var("JWT_REFRESH_SECRET").expect("JWT_REFRESH_SECRET"),
+            email_verification_secret: std::env::var("EMAIL_VERIFICATION_SECRET")
+                .expect("EMAIL_VERIFICATION_SECRET"),
+            password_reset_secret: std::env::var("PASSWORD_RESET_SECRET")
+                .expect("PASSWORD_RESET_SECRET"),
             access_token_expires_in: std::env::var("ACCESS_TOKEN_EXPIRES_IN")
                 .expect("ACCESS_TOKEN_EXPIRES_IN")
                 .parse::<i64>()

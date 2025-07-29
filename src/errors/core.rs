@@ -3,10 +3,15 @@ use thiserror::Error;
 use tracing::{error, warn};
 use uuid::Uuid;
 
-use crate::errors::{api::ApiError, auth::AuthError, db::DatabaseError, response::HttpError, validation::ValidationError};
+use crate::errors::{
+    api::ApiError, auth::AuthError, db::DatabaseError, jwt::JwtError, response::HttpError,
+    validation::ValidationError,
+};
 
 #[derive(Error, Debug)]
 pub enum Error {
+    #[error("JWT error: {0}")]
+    Jwt(#[from] JwtError),
     #[error("Database error: {0}")]
     Db(#[from] DatabaseError),
     #[error("Authentication error: {0}")]
@@ -36,6 +41,7 @@ impl Error {
 
     pub fn error_code(&self) -> String {
         match self {
+            Error::Jwt(err) => err.error_code().to_string(),
             Error::Db(err) => match err {
                 DatabaseError::ConnectionError { .. } => "DB_CONNECTION_ERROR".to_string(),
                 DatabaseError::QueryError { .. } => "DB_QUERY_ERROR".to_string(),
@@ -54,6 +60,14 @@ impl Error {
         let trace_id = self.trace_id();
 
         match self {
+            Error::Jwt(err) => {
+                warn!(
+                    error = %err,
+                    trace_id = %trace_id,
+                    error_code = %self.error_code(),
+                    "JWT error occurred"
+                );
+            }
             Error::Db(err) => {
                 error!(
                     error = %err,
@@ -125,6 +139,28 @@ impl From<Error> for HttpError {
         error.log_error();
 
         match error {
+            Error::Jwt(err) => match err {
+                JwtError::TokenExpired => HttpError::with_trace_id(
+                    "JWT token has expired",
+                    axum::http::StatusCode::UNAUTHORIZED,
+                    err.error_code(),
+                    trace_id,
+                ),
+                JwtError::InvalidToken | JwtError::InvalidSignature | JwtError::InvalidFormat => {
+                    HttpError::with_trace_id(
+                        "Invalid JWT token",
+                        axum::http::StatusCode::UNAUTHORIZED,
+                        err.error_code(),
+                        trace_id,
+                    )
+                }
+                _ => HttpError::with_trace_id(
+                    err.to_string(),
+                    axum::http::StatusCode::BAD_REQUEST,
+                    err.error_code(),
+                    trace_id,
+                ),
+            },
             Error::Db(err) => match err {
                 DatabaseError::NotFound(msg) => HttpError::with_trace_id(
                     msg,
@@ -229,6 +265,12 @@ impl From<Error> for HttpError {
                 HttpError::server_error_with_trace_id("Internal server error", trace_id)
             }
         }
+    }
+}
+
+impl From<jsonwebtoken::errors::Error> for Error {
+    fn from(error: jsonwebtoken::errors::Error) -> Self {
+        Error::Jwt(JwtError::from(error))
     }
 }
 

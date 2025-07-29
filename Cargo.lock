@@ -413,6 +413,7 @@ dependencies = [
  "axum",
  "chrono",
  "dotenvy",
+ "jsonwebtoken",
  "once_cell",
  "regex",
  "serde",

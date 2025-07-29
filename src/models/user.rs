@@ -1,6 +1,6 @@
+use crate::models::role::Role;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use crate::models::role::Role;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct User {

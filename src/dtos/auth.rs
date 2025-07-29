@@ -1,128 +1,89 @@
 use serde::{Deserialize, Serialize};
 use validator::Validate;
-use crate::models::token_type::TokenType;
-use crate::models::user::User;
-use crate::dtos::{NAME_REGEX, PASSWORD_REGEX, TOKEN_REGEX};
-
-#[derive(Debug, Deserialize, Validate)]
-pub struct RegisterRequest {
-
-    #[validate(length(min = 1, max = 50), regex(path = "*NAME_REGEX"))]
-    pub name: String,
-
-    #[validate(email)]
-    pub email: String,
-
-    #[validate(length(min = 8, max = 20), regex(path = "*PASSWORD_REGEX"))]
-    pub password: String,
-
-    #[validate(must_match(other = "password"))]
-    pub confirm_password: String,
-}
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct LoginRequest {
-
-    #[validate(email)]
+    #[validate(email(message = "Invalid email format"))]
     pub email: String,
 
-    #[validate(length(min = 8, max = 20), regex(path = "*PASSWORD_REGEX"))]
+    #[validate(length(min = 1, message = "Password cannot be empty"))]
     pub password: String,
+
+    pub device_info: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Validate)]
-pub struct RefreshTokenRequest {
-
-    #[validate(length(min = 32, max = 512), regex(path = "*TOKEN_REGEX"))]
-    pub refresh_token: String,
-}
-
-#[derive(Debug, Deserialize, Validate)]
-pub struct VerifyEmailRequest {
-
-    #[validate(length(min = 32, max = 512), regex(path = "*TOKEN_REGEX"))]
-    pub token: String,
-}
-
-#[derive(Debug, Deserialize, Validate)]
-pub struct ForgotPasswordRequest {
-
-    #[validate(email)]
+pub struct RegisterRequest {
+    #[validate(email(message = "Invalid email format"))]
     pub email: String,
+
+    #[validate(length(min = 8, message = "Password must be at least 8 characters"))]
+    pub password: String,
+
+    #[validate(length(min = 1, message = "Name cannot be empty"))]
+    pub name: String,
 }
 
-#[derive(Debug, Deserialize, Validate)]
-pub struct ResetPasswordRequest {
-
-    #[validate(length(min = 32, max = 512), regex(path = "*TOKEN_REGEX"))]
-    pub token: String,
-
-    #[validate(length(min = 8, max = 20), regex(path = "*PASSWORD_REGEX"))]
-    pub new_password: String,
-
-    #[validate(must_match(other = "new_password"))]
-    pub confirm_password: String,
-}
-
-#[derive(Debug, Deserialize, Validate)]
-pub struct ChangePasswordRequest {
-
-    #[validate(length(min = 8, max = 20), regex(path = "*PASSWORD_REGEX"))]
-    pub current_password: String,
-
-    #[validate(length(min = 8, max = 20), regex(path = "*PASSWORD_REGEX"))]
-    pub new_password: String,
-
-    #[validate(must_match(other = "new_password"))]
-    pub confirm_password: String,
+#[derive(Debug, Deserialize)]
+pub struct RefreshTokenRequest {
+    pub refresh_token: String,
 }
 
 #[derive(Debug, Serialize)]
 pub struct LoginResponse {
-    pub user: UserResponse,
-    pub tokens: TokenResponse,
+    pub access_token: String,
+    pub refresh_token: String,
+    pub token_type: String,
+    pub expires_in: i64,
+    pub user: UserInfo,
 }
 
 #[derive(Debug, Serialize)]
-pub struct UserResponse {
-    pub id: String,
-    pub name: String,
-    pub email: String,
-    pub role: String,
-    pub verified: bool,
-    pub created_at: Option<String>,
-    pub updated_at: Option<String>,
-}
-
-impl From<User> for UserResponse {
-    fn from(user: User) -> Self {
-        UserResponse { 
-            id: user.id, 
-            name: user.name, 
-            email: user.email, 
-            role: user.role.to_str().to_string(), 
-            verified: user.verified, 
-            created_at: user.created_at.map(|dt| dt.to_rfc3339()), 
-            updated_at: user.updated_at.map(|dt| dt.to_rfc3339()),
-        }
-    }
-}
-
-#[derive(Debug, Serialize)]
-pub struct TokenResponse {
+pub struct RefreshTokenResponse {
     pub access_token: String,
     pub refresh_token: String,
     pub token_type: String,
     pub expires_in: i64,
 }
 
-impl TokenResponse {
-    pub fn new(access_token: String, refresh_token: String, expires_in: i64) -> Self {
-        Self {
-            access_token,
-            refresh_token,
-            token_type: TokenType::Bearer.to_str().to_string(),
-            expires_in,
-        }
-    }
+#[derive(Debug, Serialize)]
+pub struct UserInfo {
+    pub id: String,
+    pub email: String,
+    pub name: String,
+    pub role: String,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LogoutRequest {
+    pub refresh_token: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LogoutResponse {
+    pub message: String,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct ChangePasswordRequest {
+    #[validate(length(min = 1, message = "Current password cannot be empty"))]
+    pub current_password: String,
+
+    #[validate(length(min = 8, message = "New password must be at least 8 characters"))]
+    pub new_password: String,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct ForgotPasswordRequest {
+    #[validate(email(message = "Invalid email format"))]
+    pub email: String,
+}
+
+#[derive(Debug, Deserialize, Validate)]
+pub struct ResetPasswordRequest {
+    pub token: String,
+
+    #[validate(length(min = 8, message = "Password must be at least 8 characters"))]
+    pub new_password: String,
 }
