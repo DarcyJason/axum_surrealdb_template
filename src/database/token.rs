@@ -130,6 +130,7 @@ impl TokenRepository {
         let sessions: Vec<TokenSession> = app_state
             .db
             .query("SELECT * FROM token_sessions WHERE user_id = $user_id AND is_active = true")
+            .bind(("user_id", user_id))
             .await
             .map_err(|e| {
                 DatabaseError::query_failed(e, Some("SELCT active sessions by user".to_string()))

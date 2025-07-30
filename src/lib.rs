@@ -11,6 +11,7 @@ mod state;
 
 use crate::config::Config;
 use crate::config::token::TokenConfig;
+use crate::database::init::initialize_database;
 use crate::routes::all_routes;
 use crate::services::token::TokenService;
 use crate::services::user::UserService;
@@ -57,14 +58,18 @@ pub async fn run() {
     );
     info!("✅ You can press Ctrl+C to shut it down.");
 
-    let app_state = AppState {
+    let app_state = Arc::new(AppState {
         env: config.clone(),
         db: db,
         token_service: TokenService::new(TokenConfig::new()),
         user_service: UserService::new(),
-    };
+    });
 
-    let app_router = all_routes(Arc::new(app_state.clone()));
+    initialize_database(app_state.clone())
+        .await
+        .expect("Failed to initialize database");
+
+    let app_router = all_routes(app_state.clone());
 
     let listener = tokio::net::TcpListener::bind(format!("127.0.0.1:{port}"))
         .await
