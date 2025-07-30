@@ -15,7 +15,7 @@ use crate::routes::all_routes;
 use crate::services::token::TokenService;
 use crate::state::AppState;
 use axum::serve;
-use std::sync::{Arc};
+use std::sync::Arc;
 use surrealdb::Surreal;
 use surrealdb::engine::remote::ws::{Client, Ws};
 use surrealdb::opt::auth::Root;
@@ -58,7 +58,7 @@ pub async fn run() {
 
     let app_state = AppState {
         env: config.clone(),
-        db: Arc::new(db),
+        db: db,
         token_service: TokenService::new(TokenConfig::new()),
     };
 
