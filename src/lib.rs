@@ -15,14 +15,12 @@ use crate::routes::all_routes;
 use crate::services::token::TokenService;
 use crate::state::AppState;
 use axum::serve;
-use std::sync::{Arc, LazyLock};
+use std::sync::{Arc};
 use surrealdb::Surreal;
 use surrealdb::engine::remote::ws::{Client, Ws};
 use surrealdb::opt::auth::Root;
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
-
-static DB: LazyLock<Surreal<Client>> = LazyLock::new(Surreal::init);
 
 pub async fn run() {
     dotenvy::dotenv().ok();
@@ -36,16 +34,17 @@ pub async fn run() {
 
     let config = Config::new();
 
-    DB.connect::<Ws>(&config.db_config.surreal_url)
+    let db: Surreal<Client> = Surreal::<Client>::init();
+    db.connect::<Ws>(&config.db_config.surreal_url)
         .await
         .unwrap();
-    DB.signin(Root {
+    db.signin(Root {
         username: &config.db_config.surreal_root_username,
         password: &config.db_config.surreal_root_password,
     })
     .await
     .unwrap();
-    DB.use_ns(&config.db_config.surreal_root_ns)
+    db.use_ns(&config.db_config.surreal_root_ns)
         .use_db(&config.db_config.surreal_root_db)
         .await
         .unwrap();
@@ -59,6 +58,7 @@ pub async fn run() {
 
     let app_state = AppState {
         env: config.clone(),
+        db: Arc::new(db),
         token_service: TokenService::new(TokenConfig::new()),
     };
 
