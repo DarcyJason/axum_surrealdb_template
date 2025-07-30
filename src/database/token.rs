@@ -1,5 +1,3 @@
-use axum::Extension;
-
 use crate::{
     errors::{core::Result, db::DatabaseError},
     models::token_session::TokenSession,
@@ -7,6 +5,7 @@ use crate::{
 };
 use std::sync::Arc;
 
+#[derive(Debug, Clone)]
 pub struct TokenRepository;
 
 impl TokenRepository {

@@ -411,6 +411,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
+ "bcrypt 0.17.0",
  "chrono",
  "dotenvy",
  "jsonwebtoken",
@@ -472,6 +473,19 @@ dependencies = [
  "base64 0.22.1",
  "blowfish",
  "getrandom 0.2.16",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
+name = "bcrypt"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92758ad6077e4c76a6cadbce5005f666df70d4f13b19976b1a8062eef880040f"
+dependencies = [
+ "base64 0.22.1",
+ "blowfish",
+ "getrandom 0.3.3",
  "subtle",
  "zeroize",
 ]
@@ -3727,7 +3741,7 @@ dependencies = [
  "async-executor",
  "async-graphql",
  "base64 0.21.7",
- "bcrypt",
+ "bcrypt 0.15.1",
  "bincode",
  "blake3",
  "bytes",

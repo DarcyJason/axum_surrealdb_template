@@ -13,6 +13,7 @@ use crate::config::Config;
 use crate::config::token::TokenConfig;
 use crate::routes::all_routes;
 use crate::services::token::TokenService;
+use crate::services::user::UserService;
 use crate::state::AppState;
 use axum::serve;
 use std::sync::Arc;
@@ -60,6 +61,7 @@ pub async fn run() {
         env: config.clone(),
         db: db,
         token_service: TokenService::new(TokenConfig::new()),
+        user_service: UserService::new(),
     };
 
     let app_router = all_routes(Arc::new(app_state.clone()));

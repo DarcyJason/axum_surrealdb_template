@@ -5,7 +5,6 @@ use uuid::Uuid;
 
 use crate::errors::{
     api::ApiError, auth::AuthError, db::DatabaseError, jwt::JwtError, response::HttpError,
-    validation::ValidationError,
 };
 
 #[derive(Error, Debug)]
@@ -18,8 +17,8 @@ pub enum Error {
     Auth(#[from] AuthError),
     #[error("API error: {0}")]
     Api(#[from] ApiError),
-    #[error("Validation error: {0}")]
-    Validation(#[from] ValidationError),
+    #[error("Validator error: {0}")]
+    Validation(#[from] validator::ValidationErrors),
     #[error("Internal server error: {message}")]
     Internal { message: String, trace_id: Uuid },
 }
@@ -51,7 +50,7 @@ impl Error {
             },
             Error::Auth(err) => err.error_code().to_string(),
             Error::Api(err) => err.error_code().to_string(),
-            Error::Validation(err) => err.error_code().to_string(),
+            Error::Validation(_) => "VALIDATION_ERROR".to_string(),
             Error::Internal { .. } => "INTERNAL_SERVER_ERROR".to_string(),
         }
     }
@@ -76,27 +75,24 @@ impl Error {
                     "Database error occurred"
                 );
             }
-            Error::Auth(err) => {
-                // 某些认证错误可能是正常的（如登录失败），使用warn级别
-                match err {
-                    AuthError::InvalidCredentials | AuthError::TokenExpired => {
-                        warn!(
-                            error = %err,
-                            trace_id = %trace_id,
-                            error_code = %self.error_code(),
-                            "Authentication error"
-                        );
-                    }
-                    _ => {
-                        error!(
-                            error = %err,
-                            trace_id = %trace_id,
-                            error_code = %self.error_code(),
-                            "Authentication error occurred"
-                        );
-                    }
+            Error::Auth(err) => match err {
+                AuthError::InvalidCredentials | AuthError::TokenExpired => {
+                    warn!(
+                        error = %err,
+                        trace_id = %trace_id,
+                        error_code = %self.error_code(),
+                        "Authentication error"
+                    );
                 }
-            }
+                _ => {
+                    error!(
+                        error = %err,
+                        trace_id = %trace_id,
+                        error_code = %self.error_code(),
+                        "Authentication error occurred"
+                    );
+                }
+            },
             Error::Api(err) => {
                 warn!(
                     error = %err,
@@ -244,21 +240,37 @@ impl From<Error> for HttpError {
                     trace_id,
                 ),
             },
+            Error::Validation(validation_errors) => {
+                let mut error_details = serde_json::Map::new();
 
-            Error::Validation(err) => {
-                let mut http_error = HttpError::with_trace_id(
-                    err.to_string(),
-                    axum::http::StatusCode::UNPROCESSABLE_ENTITY,
-                    err.error_code(),
-                    trace_id,
-                );
-
-                // 如果有详细信息，添加到响应中
-                if let Some(details) = err.to_details() {
-                    http_error = http_error.with_details(details);
+                for (field, errors) in validation_errors.field_errors() {
+                    let field_errors: Vec<String> = errors
+                        .iter()
+                        .map(|error| {
+                            error
+                                .message
+                                .as_ref()
+                                .map(|m| m.to_string())
+                                .unwrap_or_else(|| format!("Invalid value for field: {}", field))
+                        })
+                        .collect();
+                    error_details.insert(
+                        field.to_string(),
+                        serde_json::Value::Array(
+                            field_errors
+                                .into_iter()
+                                .map(serde_json::Value::String)
+                                .collect(),
+                        ),
+                    );
                 }
-
-                http_error
+                HttpError::with_trace_id(
+                    "Validation failed",
+                    axum::http::StatusCode::UNPROCESSABLE_ENTITY,
+                    "VALIDATION_ERROR",
+                    trace_id,
+                )
+                .with_details(serde_json::Value::Object(error_details))
             }
 
             Error::Internal { .. } => {
